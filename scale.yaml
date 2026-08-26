@@ -1,0 +1,38 @@
+services:
+  # The Load Balancer (exposed to the outside world)
+  load_balancer:
+    image: nginx:latest
+    container_name: nginx_lb
+    ports:
+      - "8080:8080"  # Access your app via http://localhost:8080
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - openmed
+    restart: unless-stopped
+  
+  openmed:
+    image: openmed:gpu
+    environment:
+      - OPENMED_PROFILE=prod
+      - OPENMED_DEVICE=cuda
+      - OPENMED_SERVICE_TRUSTED_HOSTS=127.0.0.1,localhost,10.0.2.52
+      - OPENMED_SERVICE_PRELOAD_MODELS=pii_superclinical_small
+      - OPENMED_SERVICE_MAX_RESIDENT_MODELS=1
+      - OPENMED_SERVICE_BATCHING_ENABLED=true
+      - OPENMED_SERVICE_BATCH_MAX_SIZE=8
+      - OPENMED_SERVICE_BATCH_HIGH_WATERMARK=256
+      - OPENMED_SERVICE_BATCH_LOW_WATERMARK=128
+      - OPENMED_SERVICE_COALESCING_ENABLED=true
+    ports:
+      - "8080"
+    deploy:
+      replicas: 4 
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
